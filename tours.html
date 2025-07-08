@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SongiSathi Tours</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+    <style>
+        .loader {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #16a34a;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body class="bg-green-50 font-sans">
+    <header class="bg-green-600 text-white py-6">
+        <div class="container mx-auto px-4">
+            <h1 class="text-3xl font-bold text-center">SongiSathi Tours</h1>
+            <p class="text-center mt-2">Explore the beauty of Bangladesh with us</p>
+        </div>
+    </header>
+
+    <main class="container mx-auto px-4 py-8">
+        <div id="loading" class="loader"></div>
+        <div id="packages" class="grid grid-cols-1 gap-6 hidden"></div>
+    </main>
+
+    <footer class="bg-green-600 text-white py-4">
+        <div class="container mx-auto px-4 text-center">
+            <p>© 2025 SongiSathi Tours. All rights reserved.</p>
+        </div>
+    </footer>
+
+    <script>
+        const url = 'https://opensheet.elk.sh/1zQ2fOZo4Rma_Ppg3i5egqVuMVfbNIHI5fESnjrh8ko8/1';
+        const botToken = 'YOUR_TELEGRAM_BOT_TOKEN';
+        const chatId = 'YOUR_TELEGRAM_CHAT_ID';
+
+        async function fetchPackages() {
+            const loading = document.getElementById('loading');
+            const packagesContainer = document.getElementById('packages');
+            try {
+                const response = await axios.get(url);
+                const packages = response.data;
+                packages.forEach(pkg => {
+                    const originalPrice = parseFloat(pkg.Offerprice.replace(/,/g, ''));
+                    const card = document.createElement('div');
+                    card.className = 'bg-white rounded-lg shadow-lg overflow-hidden';
+                    card.innerHTML = `
+                        <img src="${pkg.imageUrl}" alt="${pkg.Title}" class="w-full h-48 object-cover">
+                        <div class="p-4">
+                            <h2 class="text-xl font-semibold">${pkg.Title}</h2>
+                            <p class="text-gray-600 mt-2">${pkg.description}</p>
+                            <p class="mt-2"><strong>Location:</strong> ${pkg.location}</p>
+                            <p class="mt-1 price-display"><strong>Price:</strong> ৳${pkg.Offerprice}</p>
+                            <p class="mt-1"><strong>Reviews:</strong> ${pkg.review}</p>
+                            ${pkg.voucherCode ? `
+                                <div class="mt-4">
+                                    <input type="text" placeholder="Enter Voucher Code" class="voucher-input w-full p-2 border rounded">
+                                    <button class="apply-voucher bg-green-500 text-white px-4 py-2 mt-2 rounded hover:bg-green-600" data-original-price="${originalPrice}">Apply Voucher</button>
+                                </div>
+                            ` : ''}
+                            <div class="mt-4 flex space-x-2">
+                                <button class="book-now bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600" data-price="${originalPrice}" data-title="${pkg.Title}">Book Now</button>
+                                <button class="advance-payment bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600" data-title="${pkg.Title}">Advance Payment</button>
+                            </div>
+                        </div>
+                    `;
+                    packagesContainer.appendChild(card);
+                });
+
+                document.querySelectorAll('.apply-voucher').forEach((btn, index) => {
+                    btn.addEventListener('click', () => {
+                        const input = btn.previousElementSibling;
+                        const priceDisplay = btn.parentElement.previousElementSibling.previousElementSibling;
+                        const bookNowBtn = btn.parentElement.nextElementSibling.querySelector('.book-now');
+                        const originalPrice = parseFloat(btn.dataset.originalPrice);
+                        if (input.value === packages[index].voucherCode) {
+                            const discountPrice = (originalPrice * 0.9).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                            priceDisplay.innerHTML = `<strong>Price:</strong> <del class="text-red-500">৳${packages[index].Offerprice}</del> <span class="text-green-600">৳${discountPrice}</span>`;
+                            bookNowBtn.dataset.price = discountPrice.replace(/,/g, '');
+                        } else {
+                            alert('Invalid voucher code');
+                            priceDisplay.innerHTML = `<strong>Price:</strong> ৳${packages[index].Offerprice}`;
+                            bookNowBtn.dataset.price = originalPrice;
+                        }
+                    });
+                });
+
+                document.querySelectorAll('.book-now').forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        const modal = document.createElement('div');
+                        modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center';
+                        modal.innerHTML = `
+                            <div class="bg-white p-6 rounded-lg w-full max-w-md">
+                                <h2 class="text-xl font-semibold mb-4">Book ${btn.dataset.title}</h2>
+                                <form id="booking-form">
+                                    <input type="text" name="name" placeholder="Enter Name" class="w-full p-2 mb-4 border rounded" required>
+                                    <input type="email" name="email" placeholder="Enter Email" class="w-full p-2 mb-4 border rounded" required>
+                                    <input type="text" name="phone" placeholder="Enter Phone Number" class="w-full p-2 mb-4 border rounded" required>
+                                    <button type="submit" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">Submit Booking</button>
+                                    <button type="button" class="close-modal bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600 mt-2">Close</button>
+                                </form>
+                            </div>
+                        `;
+                        document.body.appendChild(modal);
+                        modal.querySelector('#booking-form').addEventListener('submit', async (e) => {
+                            e.preventDefault();
+                            const formData = new FormData(e.target);
+                            const message = `New Booking for ${btn.dataset.title}\nName: ${formData.get('name')}\nEmail: ${formData.get('email')}\nPhone: ${formData.get('phone')}\nPrice: ৳${btn.dataset.price}`;
+                            await axios.get(`https://api.telegram.org/bot${botToken}/sendMessage?chat_id=${chatId}&text=${encodeURIComponent(message)}`);
+                            alert('Booking submitted successfully!');
+                            document.body.removeChild(modal);
+                        });
+                        modal.querySelector('.close-modal').addEventListener('click', () => {
+                            document.body.removeChild(modal);
+                        });
+                    });
+                });
+
+                document.querySelectorAll('.advance-payment').forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        const modal = document.createElement('div');
+                        modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center';
+                        modal.innerHTML = `
+                            <div class="bg-white p-6 rounded-lg w-full max-w-md">
+                                <h2 class="text-xl font-semibold mb-4">Advance Payment for ${btn.dataset.title}</h2>
+                                <form id="advance-form">
+                                    <input type="text" name="name" placeholder="Enter Name" class="w-full p-2 mb-4 border rounded" required>
+                                    <input type="email" name="email" placeholder="Enter Email" class="w-full p-2 mb-4 border rounded" required>
+                                    <input type="text" name="phone" placeholder="Enter Phone Number" class="w-full p-2 mb-4 border rounded" required>
+                                    <input type="number" name="amount" placeholder="Enter Amount" class="w-full p-2 mb-4 border rounded" required>
+                                    <button type="submit" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600">Submit Payment</button>
+                                    <button type="button" class="close-modal bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600 mt-2">Close</button>
+                                </form>
+                            </div>
+                        `;
+                        document.body.appendChild(modal);
+                        modal.querySelector('#advance-form').addEventListener('submit', async (e) => {
+                            e.preventDefault();
+                            const formData = new FormData(e.target);
+                            const message = `Advance Payment for ${btn.dataset.title}\nName: ${formData.get('name')}\nEmail: ${formData.get('email')}\nPhone: ${formData.get('phone')}\nAmount: ৳${formData.get('amount')}`;
+                            await axios.get(`https://api.telegram.org/bot${botToken}/sendMessage?chat_id=${chatId}&text=${encodeURIComponent(message)}`);
+                            alert('Advance payment submitted successfully!');
+                            document.body.removeChild(modal);
+                        });
+                        modal.querySelector('.close-modal').addEventListener('click', () => {
+                            document.body.removeChild(modal);
+                        });
+                    });
+                });
+
+                loading.classList.add('hidden');
+                packagesContainer.classList.remove('hidden');
+            } catch (error) {
+                console.error('Error fetching packages:', error);
+                loading.innerHTML = 'Failed to load packages. Please try again.';
+            }
+        }
+
+        fetchPackages();
+    </script>
+</body>
+</html>
